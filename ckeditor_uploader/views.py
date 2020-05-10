@@ -1,5 +1,6 @@
 from __future__ import absolute_import, unicode_literals
 
+from typing import Set, Dict
 import inspect
 import os
 import warnings
@@ -10,13 +11,16 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.html import escape
 from django.utils.module_loading import import_string
+from django.utils.translation import gettext
 from django.views import generic
 from django.views.decorators.csrf import csrf_exempt
 
 from ckeditor_uploader import utils
 from ckeditor_uploader.backends import registry
 from ckeditor_uploader.forms import SearchForm
-from ckeditor_uploader.utils import storage
+from ckeditor_uploader.utils import (
+    storage, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AUDIO_EXTENSIONS
+)
 
 from .utils import is_valid_image_extension
 
@@ -134,7 +138,7 @@ class ImageUploadView(generic.View):
 upload = csrf_exempt(ImageUploadView.as_view())
 
 
-def get_image_files(user=None, path=''):
+def get_files_in_storage(extensions: Set[str], user=None, path=''):
     """
     Recursively walks all dirs under upload dir and generates a list of
     full paths for each file found.
@@ -151,7 +155,7 @@ def get_image_files(user=None, path=''):
     else:
         user_path = ''
 
-    browse_path = os.path.join(settings.CKEDITOR_UPLOAD_PATH, user_path, path)
+    browse_path = os.path.join(settings.CKEDITOR_UPLOAD_PATH, user_path)
 
     try:
         storage_list = storage.listdir(browse_path)
@@ -161,7 +165,12 @@ def get_image_files(user=None, path=''):
         return
 
     for filename in storage_list[STORAGE_FILES]:
-        if os.path.splitext(filename)[0].endswith('_thumb') or os.path.basename(filename).startswith('.'):
+        # Skip hidden files
+        if os.path.basename(filename).startswith('.'):
+            continue
+        ext = os.path.splitext(filename)[1]
+        print("File", filename, "ext", ext, "extensions", extensions)
+        if ext not in extensions:
             continue
         filename = os.path.join(browse_path, filename)
         yield filename
@@ -170,29 +179,34 @@ def get_image_files(user=None, path=''):
         if directory.startswith('.'):
             continue
         directory_path = os.path.join(path, directory)
-        for element in get_image_files(user=user, path=directory_path):
+        for element in get_files_in_storage(extensions, user=user, path=directory_path):
             yield element
 
 
-def get_files_browse_urls(user=None):
+def get_files_browse_urls(file_types: Set[str], user=None):
     """
     Recursively walks all dirs under upload dir and generates a list of
     thumbnail and full image URL's for each file found.
     """
     files = []
-    for filename in get_image_files(user=user):
+    for filename in get_files_in_storage(file_types, user=user):
+        if os.path.splitext(filename)[0].endswith('_thumb'):
+            continue
         src = utils.get_media_url(filename)
-        if getattr(settings, 'CKEDITOR_IMAGE_BACKEND', None):
-            if is_valid_image_extension(src):
+        if is_valid_image_extension(filename):        
+            # For image files, we might have thumbs available
+            if getattr(settings, 'CKEDITOR_IMAGE_BACKEND', None):
                 thumb = utils.get_media_url(utils.get_thumb_filename(filename))
             else:
-                thumb = utils.get_icon_filename(filename)
-            visible_filename = os.path.split(filename)[1]
-            if len(visible_filename) > 20:
-                visible_filename = visible_filename[0:19] + '...'
+                thumb = src
         else:
-            thumb = src
-            visible_filename = os.path.split(filename)[1]
+            # Otherwise, just show the default file-type icon
+            thumb = utils.get_icon_filename(filename)
+        visible_filename = os.path.split(filename)[1]
+        max_len = getattr(settings, 'CKEDITOR_BROWSE_MAX_FILENAME_LEN', 20)
+        if len(visible_filename) > max_len:
+            visible_filename = visible_filename[0:max_len-1] + '...'
+        
         files.append({
             'thumb': thumb,
             'src': src,
@@ -203,8 +217,8 @@ def get_files_browse_urls(user=None):
     return files
 
 
-def browse(request):
-    files = get_files_browse_urls(request.user)
+def browse_files_of_type(request, file_types: Set[str], messages: Dict[str, str]):
+    files = get_files_browse_urls(file_types, request.user)
     if request.method == 'POST':
         form = SearchForm(request.POST)
         if form.is_valid():
@@ -227,6 +241,38 @@ def browse(request):
         'show_dirs': show_dirs,
         'dirs': dir_list,
         'files': files,
-        'form': form
+        'form': form,
+        'messages': {
+            key: gettext(msg)
+            for (key, msg) in messages.items()
+        }
     }
     return render(request, 'ckeditor/browse.html', context)
+
+
+def browse_images(request):
+    return browse_files_of_type(request, IMAGE_EXTENSIONS, {
+        'title_select_file': "Select an image to embed",
+        'info_browse_for_files': "Browse for the image you want, then click 'Embed Image' to continue...",
+        'info_no_files': "No images found. Upload images using the 'Image Button' dialog's 'Upload' tab.",
+        'label_files_in_dir': "Images in:",
+        'button_submit': "Embed Image",
+    })
+
+def browse_audios(request):
+    return browse_files_of_type(request, AUDIO_EXTENSIONS, {
+        'title_select_file': "Select an audio file to embed",
+        'info_browse_for_files': "Browse for the audio file you want, then click 'Embed Audio' to continue...",
+        'info_no_files': "No files found. Upload audio files using the 'Upload' section of the Insert Audio dialog.",
+        'label_files_in_dir': "Audio files in:",
+        'button_submit': "Embed Audio",
+    })
+
+def browse_videos(request):
+    return browse_files_of_type(request, VIDEO_EXTENSIONS, {
+        'title_select_file': "Select a video to embed",
+        'info_browse_for_files': "Browse for the video you want, then click 'Embed Video' to continue...",
+        'info_no_files': "No files found. Upload videos using the 'Upload' section of the Insert Video dialog.",
+        'label_files_in_dir': "Videos in:",
+        'button_submit': "Embed Video",
+    })

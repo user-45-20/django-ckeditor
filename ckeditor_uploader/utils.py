@@ -28,6 +28,8 @@ ckeditor_icons = [
 CKEDITOR_FILEICONS = override_icons + ckeditor_icons
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif'}
+VIDEO_EXTENSIONS = {'.mp4'}
+AUDIO_EXTENSIONS = {'.mp3', '.wav', '.ogg', '.flac'}
 
 
 # Allow for a custom storage backend defined in settings.

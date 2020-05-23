@@ -21,7 +21,6 @@
 
 			contents: [{
 				id: 'upload',
-				filebrowser: 'uploadButton',
 				elements: [{
 						type: 'html',
 						html: '<p style="font-size: 12px;">' +
@@ -42,12 +41,20 @@
 								children: [{
 										type: 'file',
 										id: 'upload',
-										size: 38
+										size: 38,
+										onClick: function () {
+											var input = this.getInputElement();
+											input.$.accept = '.mp3,.wav,.ogg,.flac';
+										}
 									},
 									{
 										type: 'fileButton',
 										id: 'uploadButton',
-										filebrowser: 'upload:txtUrl',
+										filebrowser: {
+											action: 'QuickUpload',
+											target: 'upload:txtUrl',
+											url: editor.config.filebrowserUploadAudioUrl
+										},
 										label: lang.uploadButton,
 										'for': ['upload', 'upload']
 									}
@@ -73,7 +80,7 @@
 								filebrowser: {
 									action: 'Browse',
 									target: 'upload:txtUrl',
-									url: editor.config.filebrowserBrowseAudiosUrl || editor.config.filebrowserBrowseUrl
+									url: editor.config.filebrowserBrowseAudiosUrl
 								},
 								label: editor.lang.common.browseServer
 							},

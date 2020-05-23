@@ -79,7 +79,16 @@ def get_media_url(path):
     """
     return storage.url(path)
 
+def is_ext(file_name, exts):
+    extension = os.path.splitext(file_name.lower())[1]
+    return extension in exts
 
-def is_valid_image_extension(file_path):
-    extension = os.path.splitext(file_path.lower())[1]
-    return extension in IMAGE_EXTENSIONS
+def is_image(file_name):
+    return is_ext(file_name, IMAGE_EXTENSIONS)
+
+def is_video(file_name):
+    return is_ext(file_name, VIDEO_EXTENSIONS)
+
+def is_audio(file_name):
+    return is_ext(file_name, AUDIO_EXTENSIONS)
+

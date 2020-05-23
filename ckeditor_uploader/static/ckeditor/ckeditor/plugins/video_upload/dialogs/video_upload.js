@@ -66,7 +66,6 @@
 					styles.height = heightNum + "px";
 				}
 				if (shouldSet) {
-					console.warn(styles);
 					video.setStyles(styles);
 				}
 
@@ -77,7 +76,6 @@
 
 			contents: [{
 				id: 'upload',
-				filebrowser: 'uploadButton',
 				elements: [{
 						type: 'html',
 						html: '<p style="font-size: 12px;">' +
@@ -98,14 +96,22 @@
 								children: [{
 										type: 'file',
 										id: 'upload',
-										size: 38
+										size: 38,
+										onClick: function () {
+											var input = this.getInputElement();
+											input.$.accept = '.mp4';
+										}
 									},
 									{
 										type: 'fileButton',
 										id: 'uploadButton',
-										filebrowser: 'upload:txtUrl',
+										filebrowser: {
+											action: 'QuickUpload',
+											target: 'upload:txtUrl',
+											url: editor.config.filebrowserUploadVideoUrl,
+										},
 										label: lang.uploadButton,
-										'for': ['upload', 'upload']
+										'for': ['upload', 'upload'],
 									}
 								],
 							},

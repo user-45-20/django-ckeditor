@@ -12,17 +12,13 @@ from django.shortcuts import render
 from django.utils.html import escape
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext
-from django.views import generic
+from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 
 from ckeditor_uploader import utils
 from ckeditor_uploader.backends import registry
 from ckeditor_uploader.forms import SearchForm
-from ckeditor_uploader.utils import (
-    storage, IMAGE_EXTENSIONS, VIDEO_EXTENSIONS, AUDIO_EXTENSIONS
-)
-
-from .utils import is_valid_image_extension
+from ckeditor_uploader.utils import storage, is_image, is_video, is_audio
 
 
 def _get_user_path(user):
@@ -91,54 +87,57 @@ def get_upload_filename(upload_name, request):
         os.path.join(upload_path, upload_name)
     )
 
+def handle_upload(request, expected_filetype, validator):
+    """
+    Uploads a file and send back its URL to CKEditor.
+    """
+    uploaded_file = request.FILES['upload']
 
-class ImageUploadView(generic.View):
-    http_method_names = ['post']
+    if not validator(uploaded_file.name):
+        return JsonResponse({
+            "uploaded": 0,
+            "error": {
+                "message": "Incorrect file type."
+            }
+        })
 
-    def post(self, request, **kwargs):
-        """
-        Uploads a file and send back its URL to CKEditor.
-        """
-        uploaded_file = request.FILES['upload']
+    backend = registry.get_backend(expected_filetype)
+    filewrapper = backend(storage, uploaded_file)
 
-        backend = registry.get_backend()
+    filepath = get_upload_filename(uploaded_file.name, request)
+    saved_path = filewrapper.save_as(filepath)
 
-        ck_func_num = request.GET.get('CKEditorFuncNum')
-        if ck_func_num:
-            ck_func_num = escape(ck_func_num)
+    url = utils.get_media_url(saved_path)
 
-        filewrapper = backend(storage, uploaded_file)
-        allow_nonimages = getattr(settings, 'CKEDITOR_ALLOW_NONIMAGE_FILES', True)
-        # Throws an error when an non-image file are uploaded.
-        if not filewrapper.is_image and not allow_nonimages:
-            return HttpResponse("""
-                <script type='text/javascript'>
-                window.parent.CKEDITOR.tools.callFunction({0}, '', 'Invalid file type.');
-                </script>""".format(ck_func_num))
+    return JsonResponse({
+        'url': url,
+        'uploaded': 1,
+        'fileName': os.path.split(saved_path)[1]
+    })
 
-        filepath = get_upload_filename(uploaded_file.name, request)
+@require_POST
+def _upload_image(request):
+    def validate(filename):
+        return (
+            is_image(filename) or
+            getattr(settings, 'CKEDITOR_ALLOW_UNSUPPORTED_FILES', True)
+        )
+    return handle_upload(request, "image", validate)
 
-        saved_path = filewrapper.save_as(filepath)
+@require_POST
+def _upload_video(request):
+    return handle_upload(request, "video", is_video)
 
-        url = utils.get_media_url(saved_path)
+@require_POST
+def _upload_audio(request):
+    return handle_upload(request, "audio", is_audio)
 
-        if ck_func_num:
-            # Respond with Javascript sending ckeditor upload url.
-            return HttpResponse("""
-            <script type='text/javascript'>
-                window.parent.CKEDITOR.tools.callFunction({0}, '{1}');
-            </script>""".format(ck_func_num, url))
-        else:
-            _, filename = os.path.split(saved_path)
-            retdata = {'url': url, 'uploaded': '1',
-                       'fileName': filename}
-            return JsonResponse(retdata)
-
-
-upload = csrf_exempt(ImageUploadView.as_view())
+upload_image = csrf_exempt(_upload_image)
+upload_video = csrf_exempt(_upload_video)
+upload_audio = csrf_exempt(_upload_audio)
 
 
-def get_files_in_storage(extensions: Set[str], user=None, path=''):
+def get_files_in_storage(filterer, user=None, path=''):
     """
     Recursively walks all dirs under upload dir and generates a list of
     full paths for each file found.
@@ -168,9 +167,7 @@ def get_files_in_storage(extensions: Set[str], user=None, path=''):
         # Skip hidden files
         if os.path.basename(filename).startswith('.'):
             continue
-        ext = os.path.splitext(filename)[1]
-        print("File", filename, "ext", ext, "extensions", extensions)
-        if ext not in extensions:
+        if not filterer(filename):
             continue
         filename = os.path.join(browse_path, filename)
         yield filename
@@ -179,21 +176,21 @@ def get_files_in_storage(extensions: Set[str], user=None, path=''):
         if directory.startswith('.'):
             continue
         directory_path = os.path.join(path, directory)
-        for element in get_files_in_storage(extensions, user=user, path=directory_path):
+        for element in get_files_in_storage(filterer, user=user, path=directory_path):
             yield element
 
 
-def get_files_browse_urls(file_types: Set[str], user=None):
+def get_files_browse_urls(filterer, user=None):
     """
     Recursively walks all dirs under upload dir and generates a list of
     thumbnail and full image URL's for each file found.
     """
     files = []
-    for filename in get_files_in_storage(file_types, user=user):
+    for filename in get_files_in_storage(filterer, user=user):
         if os.path.splitext(filename)[0].endswith('_thumb'):
             continue
         src = utils.get_media_url(filename)
-        if is_valid_image_extension(filename):        
+        if is_image(filename):        
             # For image files, we might have thumbs available
             if getattr(settings, 'CKEDITOR_IMAGE_BACKEND', None):
                 thumb = utils.get_media_url(utils.get_thumb_filename(filename))
@@ -210,15 +207,15 @@ def get_files_browse_urls(file_types: Set[str], user=None):
         files.append({
             'thumb': thumb,
             'src': src,
-            'is_image': is_valid_image_extension(src),
+            'is_image': is_image(src),
             'visible_filename': visible_filename,
         })
 
     return files
 
 
-def browse_files_of_type(request, file_types: Set[str], messages: Dict[str, str]):
-    files = get_files_browse_urls(file_types, request.user)
+def browse_files_of_type(request, filterer, messages: Dict[str, str]):
+    files = get_files_browse_urls(filterer, request.user)
     if request.method == 'POST':
         form = SearchForm(request.POST)
         if form.is_valid():
@@ -251,7 +248,7 @@ def browse_files_of_type(request, file_types: Set[str], messages: Dict[str, str]
 
 
 def browse_images(request):
-    return browse_files_of_type(request, IMAGE_EXTENSIONS, {
+    return browse_files_of_type(request, is_image, {
         'title_select_file': "Select an image to embed",
         'info_browse_for_files': "Browse for the image you want, then click 'Embed Image' to continue...",
         'info_no_files': "No images found. Upload images using the 'Image Button' dialog's 'Upload' tab.",
@@ -260,7 +257,7 @@ def browse_images(request):
     })
 
 def browse_audios(request):
-    return browse_files_of_type(request, AUDIO_EXTENSIONS, {
+    return browse_files_of_type(request, is_audio, {
         'title_select_file': "Select an audio file to embed",
         'info_browse_for_files': "Browse for the audio file you want, then click 'Embed Audio' to continue...",
         'info_no_files': "No files found. Upload audio files using the 'Upload' section of the Insert Audio dialog.",
@@ -269,7 +266,7 @@ def browse_audios(request):
     })
 
 def browse_videos(request):
-    return browse_files_of_type(request, VIDEO_EXTENSIONS, {
+    return browse_files_of_type(request, is_video, {
         'title_select_file': "Select a video to embed",
         'info_browse_for_files': "Browse for the video you want, then click 'Embed Video' to continue...",
         'info_no_files': "No files found. Upload videos using the 'Upload' section of the Insert Video dialog.",

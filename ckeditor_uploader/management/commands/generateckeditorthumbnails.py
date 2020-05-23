@@ -6,8 +6,8 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from ckeditor_uploader.backends import registry
-from ckeditor_uploader.utils import get_thumb_filename
-from ckeditor_uploader.views import get_image_files
+from ckeditor_uploader.utils import get_thumb_filename, is_image
+from ckeditor_uploader.views import get_files_in_storage
 
 
 class Command(BaseCommand):
@@ -17,8 +17,8 @@ class Command(BaseCommand):
     """
     def handle(self, *args, **options):
         if getattr(settings, 'CKEDITOR_IMAGE_BACKEND', None):
-            backend = registry.get_backend()
-            for image in get_image_files():
+            backend = registry.get_backend("image")
+            for image in get_files_in_storage(is_image):
                 if not self._thumbnail_exists(image):
                     self.stdout.write("Creating thumbnail for %s" % image)
                     try:

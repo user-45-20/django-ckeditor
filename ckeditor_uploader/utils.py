@@ -73,6 +73,10 @@ def get_thumb_filename(file_name):
     return force_text('{0}_thumb{1}').format(*os.path.splitext(file_name))
 
 
+def is_thumb_filename(file_name):
+    return os.path.splitext(file_name)[0].endswith('_thumb')
+
+
 def get_media_url(path):
     """
     Determine system file's media URL.
@@ -85,6 +89,9 @@ def is_ext(file_name, exts):
 
 def is_image(file_name):
     return is_ext(file_name, IMAGE_EXTENSIONS)
+
+def is_nonthumb_image(file_name):
+    return is_image(file_name) and not is_thumb_filename(file_name)
 
 def is_video(file_name):
     return is_ext(file_name, VIDEO_EXTENSIONS)

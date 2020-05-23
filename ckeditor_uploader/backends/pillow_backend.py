@@ -53,18 +53,24 @@ class PillowBackend(object):
             saved_path = self.storage_engine.save(filepath, self.file_object)
 
         if not is_animated:
-            self.create_thumbnail(file_object, saved_path)
+            self.create_thumbnail(saved_path, file_object)
         return saved_path
 
-    def create_thumbnail(self, file_object, file_path):
+    def _pil_open_image(self, file_path):
+        file_object = self.storage_engine.open(file_path)
+        return Image.open(file_object).convert('RGB')
+
+    def create_thumbnail(self, file_path, file_object=None):
         thumbnail_filename = utils.get_thumb_filename(file_path)
         thumbnail_io = BytesIO()
-        # File object after saving e.g. to S3 can be closed.
-        try:
-            image = Image.open(file_object).convert('RGB')
-        except ValueError:
-            file_object = self.storage_engine.open(file_path)
-            image = Image.open(file_object).convert('RGB')
+        if file_object:
+            try:
+                # File object after saving e.g. to S3 can be closed.
+                image = Image.open(file_object).convert('RGB')
+            except ValueError:
+                image = self._pil_open_image(file_path)
+        else:
+            image = self._pil_open_image(file_path)
         image.thumbnail(THUMBNAIL_SIZE, Image.ANTIALIAS)
         image.save(thumbnail_io, format='JPEG', optimize=True)
         return self.storage_engine.save(thumbnail_filename, thumbnail_io)

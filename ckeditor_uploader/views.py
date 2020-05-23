@@ -18,7 +18,9 @@ from django.views.decorators.csrf import csrf_exempt
 from ckeditor_uploader import utils
 from ckeditor_uploader.backends import registry
 from ckeditor_uploader.forms import SearchForm
-from ckeditor_uploader.utils import storage, is_image, is_video, is_audio
+from ckeditor_uploader.utils import (
+    storage, is_image, is_nonthumb_image, is_video, is_audio
+)
 
 
 def _get_user_path(user):
@@ -187,8 +189,6 @@ def get_files_browse_urls(filterer, user=None):
     """
     files = []
     for filename in get_files_in_storage(filterer, user=user):
-        if os.path.splitext(filename)[0].endswith('_thumb'):
-            continue
         src = utils.get_media_url(filename)
         if is_image(filename):        
             # For image files, we might have thumbs available
@@ -248,7 +248,7 @@ def browse_files_of_type(request, filterer, messages: Dict[str, str]):
 
 
 def browse_images(request):
-    return browse_files_of_type(request, is_image, {
+    return browse_files_of_type(request, is_nonthumb_image, {
         'title_select_file': "Select an image to embed",
         'info_browse_for_files': "Browse for the image you want, then click 'Embed Image' to continue...",
         'info_no_files': "No images found. Upload images using the 'Image Button' dialog's 'Upload' tab.",

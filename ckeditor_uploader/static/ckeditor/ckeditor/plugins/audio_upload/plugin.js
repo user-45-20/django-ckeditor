@@ -4,7 +4,18 @@
 	CKEDITOR.plugins.add(NAME, {
 		lang: ['en'],
 
+		isSupportedEnvironment: function(editor) {
+			return (
+				!!editor.config.filebrowserUploadAudioUrl &&
+				!!editor.config.filebrowserBrowseAudiosUrl
+			);
+		},
+
 		init: function (editor) {
+			if (!this.isSupportedEnvironment(editor)) {
+				return;
+			}
+
 			var lang = editor.lang[NAME];
 
 			var dialogName = NAME + "_dialog";
@@ -28,6 +39,11 @@
 		uploadButton: "Upload file",
 		url: "URL",
 		noFileChosen: "Please specify an audio file – upload a new one or choose an existing one.",
+		hintUploadOrChoose: "You can either <strong>upload</strong> a new audio file or " +
+		"<strong>choose an existing one</strong> on the server.",
+		chooseExistingLabel: "Choose existing",
+		uploadLabel: "Upload",
+		choiceAlternative: "OR",
 	};
 
 	// v3

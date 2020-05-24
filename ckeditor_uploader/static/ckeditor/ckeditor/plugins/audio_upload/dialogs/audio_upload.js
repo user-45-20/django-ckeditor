@@ -75,27 +75,26 @@
 				var dialog = this;
 				var audio = editor.document.createElement('audio');
 
-				audio.setAttribute("src", dialog.getValueOf("upload", "txtUrl"));
+				audio.setAttribute("src", dialog.getValueOf("mainTab", "txtUrl"));
 				audio.setAttribute("controls", true);
 
 				editor.insertElement(audio);
 			},
 
 			contents: [{
-				id: 'upload',
+				id: 'mainTab',
 				elements: [{
 						type: 'html',
 						html: '<p style="font-size: 12px;">' +
-							'&#9432; You can either <strong>upload</strong> a new audio file or ' +
-							'<strong>choose an existing one</strong> on the server.' +
-							'</p>',
+						'&#9432; ' + lang.hintUploadOrChoose +
+						'</p>',
 					},
 					_break(),
 					{
 						type: 'vbox',
 						children: [{
 								type: 'html',
-								html: '<strong>Upload</strong>'
+								html: '<strong>' + lang.uploadLabel + '</strong>'
 							},
 							{
 								type: "hbox",
@@ -133,11 +132,11 @@
 										id: 'uploadButton',
 										filebrowser: {
 											action: 'QuickUpload',
-											target: 'upload:txtUrl',
+											target: 'mainTab:txtUrl',
 											url: editor.config.filebrowserUploadAudioUrl
 										},
 										label: lang.uploadButton,
-										'for': ['upload', 'upload'],
+										'for': ['mainTab', 'upload'],
 									},
 									{
 										type: 'html',
@@ -150,21 +149,21 @@
 					_break(),
 					{
 						type: 'html',
-						html: '<strong>OR</strong>'
+						html: '<strong>' + lang.choiceAlternative + '</strong>'
 					},
 					_break(),
 					{
 						type: 'vbox',
 						children: [{
 								type: 'html',
-								html: '<strong>Choose existing</strong>'
+								html: '<strong>' + lang.chooseExistingLabel + '</strong>'
 							},
 							{
 								type: 'button',
 								id: 'browse',
 								filebrowser: {
 									action: 'Browse',
-									target: 'upload:txtUrl',
+									target: 'mainTab:txtUrl',
 									url: editor.config.filebrowserBrowseAudiosUrl
 								},
 								label: editor.lang.common.browseServer

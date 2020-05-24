@@ -139,17 +139,16 @@
 				elements: [{
 						type: 'html',
 						html: '<p style="font-size: 12px;">' +
-							'&#9432; You can either <strong>upload</strong> a new video file or ' +
-							'<strong>choose an existing one</strong> on the server.' +
-							'</p>',
+						'&#9432; ' + lang.hintUploadOrChoose +
+                        '</p>',
 					},
 					_break(),
 					{
 						type: 'vbox',
 						children: [{
 								type: 'html',
-								html: '<strong>Upload</strong>'
-							},
+								html: '<strong>' + lang.uploadLabel + '</strong>'
+                        	},
 							{
 								type: "hbox",
 								widths: ["50%", "35%", "15%"],
@@ -203,14 +202,14 @@
 					_break(),
 					{
 						type: 'html',
-						html: '<strong>OR</strong>'
+						html: '<strong>' + lang.choiceAlternative + '</strong>'
 					},
 					_break(),
 					{
 						type: 'vbox',
 						children: [{
 								type: 'html',
-								html: '<strong>Choose existing</strong>'
+								html: '<strong>' + lang.chooseExistingLabel + '</strong>'
 							},
 							{
 								type: 'button',
@@ -229,7 +228,7 @@
 						type: 'vbox',
 						children: [{
 								type: 'html',
-								html: '<h3>Size (optional)</h3>'
+								html: '<h3>' + lang.sizeLabel + '</h3>'
 							},
 							{
 								type: 'hbox',

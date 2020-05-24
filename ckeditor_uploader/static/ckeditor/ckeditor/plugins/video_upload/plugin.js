@@ -5,7 +5,18 @@
 	CKEDITOR.plugins.add(NAME, {
 		lang: ['en'],
 
+		isSupportedEnvironment: function(editor) {
+			return (
+				!!editor.config.filebrowserUploadVideoUrl &&
+				!!editor.config.filebrowserBrowseVideosUrl
+			);
+		},
+
 		init: function (editor) {
+			if (!this.isSupportedEnvironment(editor)) {
+				return;
+			}
+
 			var lang = editor.lang[NAME];
 
 			var dialogName = NAME + "_dialog";
@@ -56,6 +67,12 @@
 		noFileChosen: "Please specify a video file – upload a new one or choose an existing one.",
 		invalidWidth: "Invalid width value specified",
 		invalidHeight: "Invalid height value specified",
+		hintUploadOrChoose: "You can either <strong>upload</strong> a new video file or " +
+		"<strong>choose an existing one</strong> on the server.",
+		chooseExistingLabel: "Choose existing",
+		uploadLabel: "Upload",
+		sizeLabel: "Size (optional)",
+		choiceAlternative: "OR",
 	};
 
 	// v3

@@ -67,7 +67,7 @@
 				// Progress related listeners
 				var dialog = this;
 				
-				var progressElem = dialog.getElement().getDocument().getById("progressInfo");
+				var progressElem = dialog.getElement().getDocument().getById("videoUploadProgress");
 				// Clear previous runs, if any
 				setProgress(progressElem, "");
 
@@ -83,8 +83,8 @@
 					// On error, clear the percentage
 					listeners.push(fileLoader.on("abort", makeSetter(progressElem, "", listeners)));
 					listeners.push(fileLoader.on("error", makeSetter(progressElem, "", listeners)));
-					// After a successful upload, make sure it's 100%
-					listeners.push(fileLoader.on("uploaded", makeSetter(progressElem, "100%", listeners)));
+					// After a successful upload, let people know it's done
+					listeners.push(fileLoader.on("uploaded", makeSetter(progressElem, "OK", listeners)));
 				});
 			},
 
@@ -186,7 +186,7 @@
 									},
 									{
 										type: 'html',
-										html: '<span id="progressInfo"></span>',
+										html: '<span id="videoUploadProgress"></span>',
 									}
 								],
 							},

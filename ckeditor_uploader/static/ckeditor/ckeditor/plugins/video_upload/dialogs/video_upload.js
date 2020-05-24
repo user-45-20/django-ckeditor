@@ -28,24 +28,25 @@
 		progressElem.setHtml(progress);
 	}
 
-	function makeComputer(progressElem, fileLoader) {
+	function makeComputer(dialog) {
 		return function() {
+			var fileLoader = dialog.fileLoader;
 			var progress = Math.floor((fileLoader.uploaded / fileLoader.uploadTotal) * 100);
 			if (Number.isNaN(progress)) {
 				return;
 			}
-			setProgress(progressElem, progress + "%");
+			setProgress(dialog.progressElem, progress + "%");
 		};
 	}
 
-	// Return function that sets the progress to the specified value
-	// and deregisters listeners
-	function makeSetter(progressElem, progress, listeners) {
+	// Return function to clean up after upload completed (successfully or not)
+	function makeCleanup(dialog, progressText, listeners) {
 		return function() {
-			setProgress(progressElem, progress);
+			setProgress(dialog.progressElem, progressText);
 			listeners.forEach(function (listener) {
 				listener.removeListener();
 			});
+			dialog.fileLoader = null;
 		};
 	}
 
@@ -68,6 +69,7 @@
 				var dialog = this;
 				
 				var progressElem = dialog.getElement().getDocument().getById("videoUploadProgress");
+				dialog.progressElem = progressElem;
 				// Clear previous runs, if any
 				setProgress(progressElem, "");
 
@@ -76,20 +78,26 @@
 					
 					var listeners = [];
 					var fileLoader = evt.data.fileLoader;
+					dialog.fileLoader = fileLoader;
 
-					listeners.push(fileLoader.on("update", makeComputer(progressElem, fileLoader)));
+					listeners.push(fileLoader.on("update", makeComputer(dialog)));
 					// In these cases we want to clear the listeners list, makeSetter() will
 					// do that for us
 					// On error, clear the percentage
-					listeners.push(fileLoader.on("abort", makeSetter(progressElem, "", listeners)));
-					listeners.push(fileLoader.on("error", makeSetter(progressElem, "", listeners)));
+					listeners.push(fileLoader.on("abort", makeCleanup(dialog, "", listeners)));
+					listeners.push(fileLoader.on("error", makeCleanup(dialog, "", listeners)));
 					// After a successful upload, let people know it's done
-					listeners.push(fileLoader.on("uploaded", makeSetter(progressElem, "OK", listeners)));
+					listeners.push(fileLoader.on("uploaded", makeCleanup(dialog, "OK", listeners)));
 				});
 			},
 
 			onHide: function() {
 				this.uploadStartListener && this.uploadStartListener.removeListener();
+				// NOTE: Because the filebrowser plugin unconditionally binds the 'abort'
+				// event of fileLoader to xhrUploadErrorHandler, which does an alert(),
+				// this will result in "alert(undefined)". Cannot really be fixed without
+				// altering CKEditor source
+				this.fileLoader && this.fileLoader.abort();
 			},
 
 			onOk: function () {

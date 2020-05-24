@@ -89,19 +89,24 @@ def get_upload_filename(upload_name, request):
         os.path.join(upload_path, upload_name)
     )
 
+def upload_err_response(msg):
+    return JsonResponse({
+            "uploaded": 0,
+            "error": {
+                "message": msg
+            }
+        })
+
 def handle_upload(request, expected_filetype, validator):
     """
     Uploads a file and send back its URL to CKEditor.
     """
-    uploaded_file = request.FILES['upload']
+    uploaded_file = request.FILES.get('upload', None)
+    if not uploaded_file:
+        return upload_err_response("No file sent.")
 
     if not validator(uploaded_file.name):
-        return JsonResponse({
-            "uploaded": 0,
-            "error": {
-                "message": "Incorrect file type."
-            }
-        })
+        return upload_err_response("Incorrect file type.")
 
     backend = registry.get_backend(expected_filetype)
     filewrapper = backend(storage, uploaded_file)
